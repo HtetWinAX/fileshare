@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lanferry · LAN file transfer</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2a3441;
+    --text:#e6edf3; --dim:#8b98a5; --accent:#3fb950; --accent2:#1f6feb;
+    --warn:#d29922; --err:#f85149; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:radial-gradient(1200px 600px at 15% -10%,#1b2635 0%,var(--bg) 55%);
+    color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:#79c0ff;text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:18px 24px;border-bottom:1px solid var(--line);background:rgba(13,17,23,.75);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:20;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:19px;letter-spacing:-.02em}
+  .brand span.v{font:11px var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:20px;padding:1px 7px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);display:inline-block}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font:12.5px var(--mono);color:var(--dim);margin-left:auto;align-items:center}
+  .meta b{color:var(--text);font-weight:600}
+  main{max-width:1080px;margin:0 auto;padding:22px 24px 80px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;width:max-content;max-width:100%}
+  .tab{border:0;background:transparent;color:var(--dim);padding:9px 18px;border-radius:9px;cursor:pointer;font-weight:600;font-size:14px;display:flex;gap:8px;align-items:center}
+  .tab:hover{color:var(--text)}
+  .tab[aria-selected="true"]{background:var(--panel2);color:var(--text);box-shadow:0 0 0 1px var(--line) inset}
+  .tab .k{font:10.5px var(--mono);color:var(--dim);border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:15px;letter-spacing:.01em}
+  .card p.sub{margin:0 0 14px;color:var(--dim);font-size:13px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button, .btn{
+    font:inherit;font-size:13.5px;font-weight:600;color:var(--text);background:var(--panel2);
+    border:1px solid var(--line);border-radius:9px;padding:8px 13px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;
+    transition:background .12s,border-color .12s,transform .06s;
+  }
+  button:hover,.btn:hover{background:#242d3b;border-color:#3a4657;text-decoration:none}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent2);border-color:#2f81f7}
+  button.primary:hover{background:#2b7ceb}
+  button.ghost{background:transparent}
+  button.sm{padding:5px 9px;font-size:12px;border-radius:7px}
+  button.danger:hover{border-color:var(--err);color:var(--err)}
+  input[type=text], input[type=search]{
+    font:inherit;font-size:13.5px;color:var(--text);background:#0b0f14;border:1px solid var(--line);
+    border-radius:9px;padding:8px 11px;outline:none;min-width:0;
+  }
+  input:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(31,111,235,.18)}
+  code, .mono{font-family:var(--mono)}
+  .combo{display:flex;align-items:stretch;background:#0b0f14;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:1;min-width:260px}
+  .combo code{flex:1;padding:10px 12px;font-size:12.5px;color:#c9d1d9;white-space:nowrap;overflow-x:auto;display:flex;align-items:center}
+  .combo button{border:0;border-radius:0;border-left:1px solid var(--line);background:var(--panel2)}
+  .grid{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--dim);padding:8px 10px;border-bottom:1px solid var(--line);font-weight:500}
+  tbody td{padding:9px 10px;border-bottom:1px solid #1e2733;font-size:13.5px}
+  tbody tr:hover{background:#1a212b}
+  tbody tr:last-child td{border-bottom:0}
+  .fname{display:flex;align-items:center;gap:9px;min-width:0}
+  .fname .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ico{width:22px;text-align:center;flex:0 0 22px;font-size:14px;filter:saturate(.9)}
+  .dim{color:var(--dim)}
+  .right{text-align:right}
+  .crumbs{display:flex;gap:6px;align-items:center;font:12.5px var(--mono);color:var(--dim);flex-wrap:wrap;margin-bottom:12px}
+  .crumbs button{padding:3px 8px;font-size:12px;border-radius:6px;background:transparent}
+  .crumbs .sep{opacity:.5}
+  .drop{
+    border:1.5px dashed #334155;border-radius:14px;padding:30px 20px;text-align:center;background:#11161e;
+    transition:border-color .15s,background .15s;cursor:pointer;
+  }
+  .drop.hot{border-color:var(--accent);background:#122019}
+  .drop .big{font-size:15px;font-weight:600;margin-bottom:4px}
+  .drop .small{color:var(--dim);font-size:12.5px}
+  .queue{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .qitem{background:#11161e;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+  .qtop{display:flex;gap:10px;align-items:center;margin-bottom:7px}
+  .qtop .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .qtop .pct{font:12px var(--mono);color:var(--dim)}
+  .bar{height:6px;border-radius:99px;background:#0a0e13;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1f6feb,#3fb950);transition:width .18s ease-out}
+  .bar.err > i{background:var(--err)}
+  .bar.done > i{background:var(--accent)}
+  .qbottom{display:flex;gap:10px;margin-top:6px;font:11.5px var(--mono);color:var(--dim);align-items:center}
+  .qbottom .sp{margin-left:auto}
+  .pill{font:11px var(--mono);padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+  .pill.ok{color:var(--accent);border-color:#1c4429;background:#0d1a12}
+  .pill.err{color:var(--err);border-color:#4a1f1f;background:#1a0f0f}
+  .pill.run{color:#79c0ff;border-color:#1c3a5e;background:#0d1621}
+  .empty{color:var(--dim);font-size:13px;padding:22px 8px;text-align:center}
+  .tip{font-size:12.5px;color:var(--dim)}
+  .tip b{color:#c9d1d9}
+  .toast{position:fixed;right:20px;bottom:20px;background:#1c2330;border:1px solid var(--line);border-left:3px solid var(--accent);padding:11px 15px;border-radius:10px;font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;max-width:360px;z-index:50}
+  .toast.show{opacity:1;transform:none}
+  .toast.bad{border-left-color:var(--err)}
+  .hidden{display:none !important}
+  .stats{display:flex;gap:22px;flex-wrap:wrap;font:12px var(--mono);color:var(--dim)}
+  .stats b{color:var(--text);font-weight:600}
+  @media (max-width:640px){
+    header{padding:14px 16px}.meta{width:100%;margin-left:0;gap:12px}
+    main{padding:16px}
+    .grid{grid-template-columns:1fr}
+    td.hide-sm,th.hide-sm{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>lanferry <span class="v">v2</span></div>
+  <div class="meta">
+    <div>root <b id="mRoot">…</b></div>
+    <div>link <b id="mLink">…</b></div>
+    <div class="stats"><span>out <b id="mOut">0</b></span><span>in <b id="mIn">0</b></span></div>
+    <button class="sm" id="speedBtn" title="Measure real throughput over this link">speed test</button>
+  </div>
+</header>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="get">Get files <span class="k">server → you</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="send">Send files <span class="k">you → server</span></button>
+  </div>
+
+  <!-- ============================ GET ============================ -->
+  <section id="panel-get">
+    <div class="card">
+      <h2>Fastest path for big transfers</h2>
+      <p class="sub">A browser download is one stream. For 10s of GB, use the pull client: it resumes, uses N parallel connections and verifies sizes.</p>
+      <div class="row" style="margin-bottom:10px">
+        <div class="combo"><code id="bootCmd">curl -fsSO http://…/pull.py</code><button data-copy="bootCmd">copy</button></div>
+      </div>
+      <div class="row">
+        <div class="combo"><code id="pullCmd">python3 pull.py http://… /destination</code><button data-copy="pullCmd">copy</button></div>
+        <button class="primary" id="tarBtn" title="Download the whole shared folder as a tar stream">download folder .tar</button>
+      </div>
+      <p class="tip" style="margin:12px 0 0">On the Linux box run those two lines. Safe to Ctrl+C and re-run — it continues where it stopped.</p>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <div class="crumbs" id="crumbs" style="margin:0;flex:1"></div>
+        <input type="search" id="filter" placeholder="filter…" style="width:170px">
+        <button class="sm" id="refreshBtn">refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th class="right hide-sm">Size</th><th class="right hide-sm">Modified</th><th class="right">Action</th></tr></thead>
+        <tbody id="fileRows"><tr><td colspan="4" class="empty">loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ SEND ============================ -->
+  <section id="panel-send" class="hidden">
+    <div class="card">
+      <h2>Send files to this machine</h2>
+      <p class="sub">Drag files or whole folders. 8 MiB chunks, several files at once; dropping the same files again resumes instead of restarting.</p>
+      <div class="row" style="margin-bottom:12px">
+        <span class="dim" style="font-size:13px">save to</span>
+        <input type="text" id="destDir" placeholder="(share root)" style="flex:1;min-width:180px">
+        <span class="tip">parallel</span>
+        <select id="par" style="font:inherit;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px">
+          <option>2</option><option selected>4</option><option>6</option><option>8</option>
+        </select>
+      </div>
+      <div class="drop" id="drop">
+        <div class="big">Drop files or folders here</div>
+        <div class="small">or click to choose — &nbsp;<a href="#" id="pickFiles">files</a> · <a href="#" id="pickDir">folder</a></div>
+      </div>
+      <input type="file" id="fileInput" multiple class="hidden">
+      <input type="file" id="dirInput" webkitdirectory directory multiple class="hidden">
+      <div class="row" style="margin-top:12px">
+        <span class="pill" id="qSummary">idle</span>
+        <span class="sp" style="margin-left:auto"></span>
+        <button class="sm ghost" id="pauseAll">pause all</button>
+        <button class="sm ghost danger" id="clearDone">clear finished</button>
+      </div>
+      <div class="queue" id="queue"></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ */
+/* small helpers                                                       */
+/* ------------------------------------------------------------------ */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const TOKEN_KEY = "lanferry.token";
+const params = new URLSearchParams(location.search);
+if (params.get("token")) localStorage.setItem(TOKEN_KEY, params.get("token"));
+let TOKEN = localStorage.getItem(TOKEN_KEY) || "";
+
+function human(n) {
+  if (n == null) return "—";
+  const u = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(n < 10 ? 2 : 1)) + " " + u[i];
+}
+function dur(s) {
+  if (!isFinite(s) || s <= 0) return "—";
+  s = Math.round(s);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  if (h) return h + "h " + String(m).padStart(2, "0") + "m";
+  if (m) return m + "m " + String(x).padStart(2, "0") + "s";
+  return x + "s";
+}
+function toast(msg, bad) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("bad", !!bad);
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 3200);
+}
+function withToken(url) {
+  if (!TOKEN) return url;
+  const u = new URL(url, location.origin);
+  u.searchParams.set("token", TOKEN);
+  return u.pathname + u.search;
+}
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (TOKEN) headers["X-Token"] = TOKEN;
+  const res = await fetch(path, Object.assign({}, opts, { headers }));
+  if (res.status === 401) {
+    askToken();
+    throw new Error("token required");
+  }
+  if (!res.ok) {
+    let msg = "HTTP " + res.status;
+    try { const j = await res.json(); if (j.error) msg = j.error; } catch (_) {}
+    throw new Error(msg);
+  }
+  return res;
+}
+function askToken() {
+  if (document.getElementById("tokenBox")) return;
+  const v = prompt("This server requires a token (set with --token):", TOKEN);
+  if (v !== null) { TOKEN = v.trim(); localStorage.setItem(TOKEN_KEY, TOKEN); location.reload(); }
+}
+function copyText(text) {
+  navigator.clipboard?.writeText(text).then(() => toast("copied"), () => toast("copy failed", true));
+}
+
+/* ------------------------------------------------------------------ */
+/* tabs                                                                */
+/* ------------------------------------------------------------------ */
+$$(".tab").forEach((tab) => tab.addEventListener("click", () => {
+  $$(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+  $("#panel-get").classList.toggle("hidden", tab.dataset.tab !== "get");
+  $("#panel-send").classList.toggle("hidden", tab.dataset.tab !== "send");
+  if (tab.dataset.tab === "get") loadDir(curPath);
+}));
+
+/* ------------------------------------------------------------------ */
+/* server status                                                       */
+/* ------------------------------------------------------------------ */
+let SERVER = { urls: [], root: "" };
+async function refreshStatus() {
+  try {
+    const res = await fetch(withToken("/api/status"));
+    const s = await res.json();
+    SERVER = s;
+    if (s.token_required && !s.authorized) { askToken(); return; }
+    $("#mRoot").textContent = s.root || "—";
+    $("#mLink").textContent = (s.urls && s.urls[0] ? s.urls[0].replace(/^https?:\/\//, "") : location.host);
+    $("#mOut").textContent = human(s.bytes_out || 0);
+    $("#mIn").textContent = human(s.bytes_in || 0);
+    const base = s.urls && s.urls[0] ? s.urls[0] : location.origin;
+    $("#pullCmd").textContent = `python3 pull.py ${base} /destination`;
+    $("#bootCmd").textContent = `curl -fsSO ${base}/pull.py`;
+  } catch (e) { /* server may be restarting */ }
+}
+setInterval(refreshStatus, 4000);
+
+/* ------------------------------------------------------------------ */
+/* browse / download                                                   */
+/* ------------------------------------------------------------------ */
+let curPath = "";
+let lastItems = [];
+
+function iconFor(it) {
+  if (it.type === "dir") return "📁";
+  const n = it.name.toLowerCase();
+  if (/\.(zip|tar|gz|tgz|bz2|xz|7z|rar)$/.test(n)) return "🗜️";
+  if (/\.(mp4|mkv|mov|avi|webm)$/.test(n)) return "🎬";
+  if (/\.(png|jpe?g|gif|webp|svg|heic)$/.test(n)) return "🖼️";
+  if (/\.(mp3|wav|flac|m4a)$/.test(n)) return "🎵";
+  if (/\.(pdf)$/.test(n)) return "📕";
+  if (/\.(docx?|xlsx?|pptx?|txt|md)$/.test(n)) return "📄";
+  if (/\.(exe|dmg|pkg|msi|deb|rpm|appimage)$/.test(n)) return "📦";
+  if (/\.(db|sqlite|bak|dump)$/.test(n)) return "🗄️";
+  return "📄";
+}
+function crumb(path) {
+  const box = $("#crumbs");
+  box.innerHTML = "";
+  const rootBtn = document.createElement("button");
+  rootBtn.textContent = "⌂ share";
+  rootBtn.onclick = () => loadDir("");
+  box.appendChild(rootBtn);
+  const parts = path ? path.split("/").filter(Boolean) : [];
+  let acc = "";
+  parts.forEach((p) => {
+    const sep = document.createElement("span");
+    sep.className = "sep";
+    sep.textContent = "/";
+    box.appendChild(sep);
+    acc = acc ? acc + "/" + p : p;
+    const b = document.createElement("button");
+    b.textContent = p;
+    b.onclick = () => loadDir(acc);
+    box.appendChild(b);
+  });
+  return box;
+}
+
+async function loadDir(path) {
+  curPath = path || "";
+  crumb(curPath);
+  const tbody = $("#fileRows");
+  try {
+    const j = await (await api(`/api/browse?path=${encodeURIComponent(curPath)}`)).json();
+    lastItems = j.items || [];
+    renderRows();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">cannot open folder: ${e.message}</td></tr>`;
+  }
+}
+
+function renderRows() {
+  const tbody = $("#fileRows");
+  const q = $("#filter").value.trim().toLowerCase();
+  const items = lastItems.filter((i) => !q || i.name.toLowerCase().includes(q));
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">${lastItems.length ? "no match" : "empty folder"}</td></tr>`;
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const it of items) {
+    const tr = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const wrap = document.createElement("div");
+    wrap.className = "fname";
+    const ic = document.createElement("span");
+    ic.className = "ico";
+    ic.textContent = iconFor(it);
+    const nm = document.createElement("span");
+    nm.className = "n";
+    nm.textContent = it.name;
+    nm.title = it.name;
+    wrap.append(ic, nm);
+    nameCell.appendChild(wrap);
+    if (it.type === "dir") {
+      wrap.style.cursor = "pointer";
+      wrap.onclick = () => loadDir(it.path);
+      tr.style.cursor = "pointer";
+      tr.onclick = (ev) => { if (ev.target.closest("a,button")) return; loadDir(it.path); };
+    }
+    const size = document.createElement("td");
+    size.className = "right dim hide-sm mono";
+    size.textContent = it.type === "dir" ? "—" : human(it.size);
+    const mt = document.createElement("td");
+    mt.className = "right dim hide-sm mono";
+    mt.textContent = it.mtime ? new Date(it.mtime * 1000).toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+    const act = document.createElement("td");
+    act.className = "right";
+    const a = document.createElement("a");
+    a.className = "btn sm";
+    if (it.type === "dir") {
+      a.href = withToken(`/api/tar?path=${encodeURIComponent(it.path)}`);
+      a.textContent = "↓ .tar";
+      a.title = "stream this folder as a tar archive";
+    } else {
+      a.href = withToken(`/api/download?path=${encodeURIComponent(it.path)}`);
+      a.textContent = "↓";
+      a.title = "download";
+      a.setAttribute("download", it.name);
+    }
+    act.appendChild(a);
+    tr.append(nameCell, size, mt, act);
+    frag.appendChild(tr);
+  }
+  tbody.innerHTML = "";
+  tbody.appendChild(frag);
+}
+
+$("#refreshBtn").onclick = () => loadDir(curPath);
+$("#filter").oninput = renderRows;
+$("#tarBtn").onclick = () => {
+  if (!SERVER.authorized) return askToken();
+  location.href = withToken(`/api/tar?path=${encodeURIComponent(curPath)}`);
+};
+$$("[data-copy]").forEach((b) => b.addEventListener("click", () => copyText($("#" + b.dataset.copy).textContent)));
+
+/* ------------------------------------------------------------------ */
+/* upload queue                                                        */
+/* ------------------------------------------------------------------ */
+const CHUNK = 8 * 1024 * 1024;
+const queue = [];
+let running = 0;
+let pausedAll = false;
+
+function addFiles(fileList, rootName) {
+  const dest = $("#destDir").value.trim().replace(/^\/+|\/+$/g, "");
+  let added = 0;
+  for (const f of fileList) {
+    if (!f.size && f.name === "" ) continue;
+    let rel = f.webkitRelativePath || f.name;
+    rel = rel.split("/").filter(Boolean).join("/");
+    if (dest) rel = dest + "/" + rel;
+    queue.push({
+      file: f, rel, size: f.size, done: 0, state: "queued",
+      speed: 0, lastT: 0, lastB: 0, paused: false, err: "", ctrl: null,
+      mtime: f.lastModified ? Math.floor(f.lastModified / 1000) : 0,
+    });
+    added++;
+  }
+  if (added) { renderQueue(); pump(); }
+}
+
+function makeRow(item) {
+  const el = document.createElement("div");
+  el.className = "qitem";
+  el.innerHTML = `
+    <div class="qtop">
+      <span class="nm mono"></span>
+      <span class="pct"></span>
+      <span class="pill st"></span>
+      <button class="sm ghost act-pause">pause</button>
+      <button class="sm ghost danger act-cancel">×</button>
+    </div>
+    <div class="bar"><i></i></div>
+    <div class="qbottom"><span class="det"></span><span class="spd sp"></span></div>`;
+  item.el = el;
+  el.querySelector(".nm").textContent = item.rel;
+  el.querySelector(".nm").title = item.rel;
+  el.querySelector(".act-pause").onclick = () => togglePause(item);
+  el.querySelector(".act-cancel").onclick = () => cancelItem(item);
+  return el;
+}
+
+function renderQueue() {
+  const box = $("#queue");
+  // keep DOM in sync without rebuilding everything
+  for (const item of queue) {
+    if (!item.el) box.appendChild(makeRow(item));
+    updateRow(item);
+  }
+  const done = queue.filter((i) => i.state === "done").length;
+  const active = queue.filter((i) => i.state === "running").length;
+  const errs = queue.filter((i) => i.state === "error").length;
+  $("#qSummary").textContent = queue.length
+    ? `${done}/${queue.length} done${active ? ` · ${active} active` : ""}${errs ? ` · ${errs} failed` : ""}`
+    : "idle";
+}
+
+function updateRow(item) {
+  if (!item.el) return;
+  const pct = item.size ? Math.min(100, (item.done / item.size) * 100) : (item.state === "done" ? 100 : 0);
+  const bar = item.el.querySelector(".bar");
+  bar.querySelector("i").style.width = pct.toFixed(1) + "%";
+  bar.className = "bar" + (item.state === "error" ? " err" : item.state === "done" ? " done" : "");
+  item.el.querySelector(".pct").textContent = pct.toFixed(pct < 10 ? 1 : 0) + "%";
+  const st = item.el.querySelector(".st");
+  st.className = "pill " + (item.state === "done" ? "ok" : item.state === "error" ? "err" : item.state === "running" ? "run" : "");
+  st.textContent = item.paused ? "paused" : item.state;
+  item.el.querySelector(".det").textContent =
+    `${human(item.done)} / ${human(item.size)}` + (item.err ? " · " + item.err : "");
+  item.el.querySelector(".spd").textContent = item.state === "running" && item.speed ? human(item.speed) + "/s" : "";
+  const pb = item.el.querySelector(".act-pause");
+  pb.textContent = item.paused ? "resume" : "pause";
+  pb.disabled = item.state === "done" || item.state === "error";
+}
+
+function nextQueued() {
+  return queue.find((i) => i.state === "queued" && !i.paused);
+}
+
+function pump() {
+  const max = parseInt($("#par").value, 10) || 4;
+  while (running < max) {
+    const item = nextQueued();
+    if (!item) break;
+    runItem(item);
+  }
+  renderQueue();
+}
+
+async function runItem(item) {
+  item.state = "running";
+  item.err = "";
+  running++;
+  renderQueue();
+  try {
+    await uploadItem(item);
+    if (item.state !== "error") item.state = "done";
+    if (item.size === 0) item.done = 0;
+  } catch (e) {
+    if (item.paused) {
+      item.state = "queued";
+    } else if (String(e.name) === "AbortError") {
+      item.state = "queued";
+    } else {
+      item.state = "error";
+      item.err = e.message || String(e);
+      toast(`${item.rel}: ${item.err}`, true);
+    }
+  } finally {
+    running--;
+    updateRow(item);
+    pump();
+  }
+}
+
+async function serverOffset(rel) {
+  const j = await (await api(`/api/upload/status?path=${encodeURIComponent(rel)}`)).json();
+  return j.exists ? j.size : 0;
+}
+
+async function uploadItem(item) {
+  let offset = 0;
+  try {
+    offset = await serverOffset(item.rel);
+  } catch (e) { /* ignore, start from 0 */ }
+  if (offset > item.size) {
+    // A bigger file already exists there: restart it.
+    await api(`/api/upload?path=${encodeURIComponent(item.rel)}&restart=1`, {
+      method: "PUT", body: new Blob([]),
+    });
+    offset = 0;
+  }
+  item.done = offset;
+  item.lastT = performance.now();
+  item.lastB = offset;
+  updateRow(item);
+
+  if (item.size === 0) {
+    const res = await fetch(`/api/upload?path=${encodeURIComponent(item.rel)}&offset=0&size=0&mtime=${item.mtime}`, {
+      method: "PUT", body: new Blob([]),
+      headers: TOKEN ? { "X-Token": TOKEN } : {},
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return;
+  }
+
+  while (offset < item.size) {
+    if (item.paused) { item.state = "queued"; return; }
+    const end = Math.min(offset + CHUNK, item.size);
+    const blob = item.file.slice(offset, end);
+    item.ctrl = new AbortController();
+    const url = `/api/upload?path=${encodeURIComponent(item.rel)}&offset=${offset}&size=${item.size}&mtime=${item.mtime}`;
+    const res = await fetch(url, {
+      method: "PUT", body: blob, signal: item.ctrl.signal,
+      headers: TOKEN ? { "X-Token": TOKEN } : {},
+    });
+    if (res.status === 409) {
+      const j = await res.json();
+      offset = j.offset;
+      item.done = offset;
+      continue;
+    }
+    if (!res.ok) {
+      let msg = "HTTP " + res.status;
+      try { const j = await res.json(); if (j.error) msg = j.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    const j = await res.json();
+    offset = j.size;
+    item.done = offset;
+    const now = performance.now();
+    const dt = (now - item.lastT) / 1000;
+    if (dt > 0.25) {
+      item.speed = (offset - item.lastB) / dt;
+      item.lastT = now;
+      item.lastB = offset;
+    }
+    updateRow(item);
+  }
+  item.done = item.size;
+  item.speed = 0;
+  updateRow(item);
+}
+
+function togglePause(item) {
+  if (item.state === "done") return;
+  if (item.paused) {
+    item.paused = false;
+    if (item.state === "queued") pump();
+  } else {
+    item.paused = true;
+    try { item.ctrl?.abort(); } catch (_) {}
+  }
+  renderQueue();
+}
+
+function cancelItem(item) {
+  try { item.ctrl?.abort(); } catch (_) {}
+  item.paused = true;
+  item.state = "error";
+  item.err = "cancelled";
+  item.el?.remove();
+  queue.splice(queue.indexOf(item), 1);
+  renderQueue();
+  pump();
+}
+
+$("#pauseAll").onclick = () => {
+  pausedAll = !pausedAll;
+  $("#pauseAll").textContent = pausedAll ? "resume all" : "pause all";
+  for (const it of queue) {
+    if (it.state === "done" || it.state === "error") continue;
+    it.paused = pausedAll;
+    if (pausedAll) { try { it.ctrl?.abort(); } catch (_) {} }
+  }
+  renderQueue();
+  if (!pausedAll) pump();
+};
+$("#clearDone").onclick = () => {
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (queue[i].state === "done") { queue[i].el?.remove(); queue.splice(i, 1); }
+  }
+  renderQueue();
+};
+
+/* ---- drag & drop of files *and* folders ---- */
+const drop = $("#drop");
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.add("hot");
+}));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.remove("hot");
+}));
+drop.addEventListener("click", (e) => {
+  if (e.target.closest("a")) return;
+  $("#fileInput").click();
+});
+drop.addEventListener("drop", async (e) => {
+  const dt = e.dataTransfer;
+  const entries = [];
+  for (const item of dt.items || []) {
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) entries.push(entry);
+  }
+  if (!entries.length) { addFiles(dt.files, ""); return; }
+  const files = [];
+  for (const entry of entries) await walkEntry(entry, "", files);
+  addFiles(files, "");
+});
+
+async function walkEntry(entry, prefix, out) {
+  if (entry.isFile) {
+    await new Promise((resolve) => entry.file((f) => {
+      // simulate webkitRelativePath for folder drops
+      try { Object.defineProperty(f, "webkitRelativePath", { value: prefix + f.name }); } catch (_) {}
+      out.push(f); resolve();
+    }, resolve));
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    let batch;
+    do {
+      batch = await new Promise((res) => reader.readEntries(res, () => res([])));
+      for (const child of batch) await walkEntry(child, prefix + entry.name + "/", out);
+    } while (batch.length);
+  }
+}
+
+$("#pickFiles").onclick = (e) => { e.preventDefault(); $("#fileInput").click(); };
+$("#pickDir").onclick = (e) => { e.preventDefault(); $("#dirInput").click(); };
+$("#fileInput").onchange = (e) => { addFiles(e.target.files, ""); e.target.value = ""; };
+$("#dirInput").onchange = (e) => { addFiles(e.target.files, ""); e.target.value = ""; };
+$("#par").onchange = () => pump();
+
+/* ------------------------------------------------------------------ */
+/* speed test                                                          */
+/* ------------------------------------------------------------------ */
+$("#speedBtn").onclick = async () => {
+  const btn = $("#speedBtn");
+  btn.disabled = true;
+  btn.textContent = "testing…";
+  try {
+    const mb = 64;
+    const t0 = performance.now();
+    const res = await fetch(withToken(`/api/speedtest?mb=${mb}`), { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const reader = res.body.getReader();
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      got += value.length;
+    }
+    const sec = (performance.now() - t0) / 1000;
+    const mbs = got / sec / 1024 / 1024;
+    toast(`~${mbs.toFixed(1)} MB/s (${(mbs * 8).toFixed(0)} Mbps) over this link`);
+  } catch (e) {
+    toast("speed test failed: " + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "speed test";
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* boot                                                                */
+/* ------------------------------------------------------------------ */
+refreshStatus().then(() => {
+  loadDir("");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#filter").focus(); }
+});
+</script>
+</body>
+</html>
